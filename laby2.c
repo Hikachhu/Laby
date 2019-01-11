@@ -11,11 +11,19 @@
 #define YELLOW "\033[0;43m"
 #define BNOR "\033[0;44m"
 #define VIO "\033[0;45m"
-#define BCIEL "\033[0;46m"
+#define CYAN "\033[0;46m"
 #define GRIS "\033[0;47m"
 #define DIM 1
 
-
+void viderBuffer()
+{
+    int c = 0;
+    while (c != '\n' && c != EOF)
+    {
+        c = getchar();
+    }
+}
+        
 /*Lecture du fichier permettant d'avoir les couleurs des différents éléments*/
 /*Met dans les variables, la couleurs correspondante
 Ex: *mur=1, donc les murs seront gris*/
@@ -27,15 +35,24 @@ void LectureConfig(int *mur,int *perso, int *arriv ,int *lettre, int *chemin){
 	fclose(fichier);
 }
 /*Modification des élément d'un fichier "cara" pour écrire les temps*/
-void EcritureConfig(char *cara,int *min, int *sec){
+void EcritureConfig(char *cara, int *sec){
 	FILE* fichier = NULL;
 	int i=0,j=0;
 	char name[20];
 	sprintf(name,"%s.txt",cara);
 	fichier = fopen( name, "a");
-	fprintf(fichier,"\n%d %d",*min,*sec);
+	fprintf(fichier,"%d",*sec);
 	fclose(fichier);
+}
 
+
+int LectureScore(){
+	FILE* fichier = NULL;
+	int MeuilleurScore;
+	fichier=fopen("score.txt","r");
+	fscanf(fichier,"%d",&MeuilleurScore);
+	fclose(fichier);
+	return MeuilleurScore;
 }
 
 /*Fonction permettant d'effacer simplement l'écran*/
@@ -75,7 +92,7 @@ void clean(){
 	printf("\033[%d;%dH",44,0);
 	printf("Appuie pour continuer");
 	printf("\033[%d;%dH",30,165);
-	getchar();
+	viderBuffer();
 	clearScreen();
 }
 /*Copie les tableaux*/
@@ -89,34 +106,51 @@ void copie(int dim1, int dim2 ,int Arr1[dim1][dim2], int Arr2[dim1][dim2]){
 
 }
 
+void RechargeTableau(int dim1, int dim2 ,int Arr1[dim1][dim2]){
+	int i,j,k,l,m,mur,perso,arriv,lettre,chemin,def;
+	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
+	int valeurMur=Arr1[0][0];
+	for(i=0;i<dim1;i++){
+		for(j=0;j<dim2;j++){
+			if(Arr1[i][j]==valeurMur){
+				Arr1[i][j]=mur;
+			}
+			else{
+				Arr1[i][j]=chemin;
+			}
+		}
+	}
+
+}
 void Verif(int NbLig, int NbCol, char tableau[NbLig][NbCol][4]){
 	for (int i = 0; i < NbLig; i++)
 	{
 		for (int j = 0; j < NbCol; j++)
 		{
-/*			printf("(%d,%d)=%c (%d,%d)=%c\n",i,j,tableau[i][j][0],i,j-1,tableau[i][j-1][2]);
-			if(tableau[i][j][0]!=tableau[i][j-1][2]){
-//				exit(-1);
+			if((tableau[i][j][0]!=tableau[i-1][j][2])&&((i-1)>=0)){
+				printf("Le laby est incorrect aux coordonnées:\ni=%d,j=%d,haut\n",i,j);
+				printf("Veuillez corrigé le labyrinthe de référence\n");
+				exit(-1);
 			}
-			if(tableau[i][j][1]!=tableau[i+1][j][3]){
-//				exit(-1);
+			if((tableau[i][j][1]!=tableau[i][j+1][3])&&j+1<NbCol){
+				printf("Le laby est incorrect aux coordonnées:\ni=%d,j=%d,droite\n",i,j);
+				printf("Veuillez corrigé le labyrinthe de référence\n");
+				exit(-1);
 			}
-			if(tableau[i][j][2]!=tableau[i][j+1][0]){
-//				exit(-1);
+			if((tableau[i][j][2]!=tableau[i+1][j][0])&&i+1<NbLig){
+				printf("Le laby est incorrect aux coordonnées:\ni=%d,j=%d,bas\n",i,j);
+				printf("Veuillez corrigé le labyrinthe de référence\n");
+				exit(-1);
 			}
-			if(tableau[i][j][3]!=tableau[i-1][j][1]){
-//				exit(-1);
+			if((tableau[i][j][3]!=tableau[i][j-1][1])&&j-1>0){
+				printf("Le laby est incorrect aux coordonnées:\ni=%d,j=%d,gauche\n",i,j);
+				printf("Veuillez corrigé le labyrinthe de référence\n");
+
+				exit(-1);
 			}
-*/		
-			for (int k = 0; k < 4; k++)
-			{
-				
-				printf("%c",tableau[i][j][k]);
-			}
-			printf(" ");
 		}
-		printf("\n");
 	}
+	printf("Le labyrinthe est correctement lu\n");
 	getchar();
 
 }
@@ -129,28 +163,28 @@ void affiche(int haut, int lon, int color,int dim){
 	int i,j,k,l,m,mur,perso,arriv,lettre,chemin,def;
 	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
 		for(i=0;i<dim;i++){
-		for(j=0;j<dim*2;j+=2){
-			printf("\033[%d;%dH",1+haut+i,1+lon+j);
-			if(color==0){
-				printf(BCIEL"  "DEF);
-			}
-			if(color==1){
-				printf(RED"  "DEF);
-			}
-			if(color==2){
-				printf(VIO"  "DEF);
-			}
-			if(color==3){	
-				printf(YELLOW"  "DEF);
-			}
-			if(color==4){
-				printf(GRIS"  "DEF);
-			}
-			if(color==5){
-				printf(DEF"  "DEF);
+			for(j=0;j<dim*2;j+=2){
+				printf("\033[%d;%dH",1+haut+i,1+lon+j);
+				if(color==0){
+					printf(CYAN"  "DEF);
+				}
+				if(color==1){
+					printf(RED"  "DEF);
+				}
+				if(color==2){
+					printf(VIO"  "DEF);
+				}
+				if(color==3){	
+					printf(YELLOW"  "DEF);
+				}
+				if(color==4){
+					printf(GRIS"  "DEF);
+				}
+				if(color==5){
+					printf(DEF"  "DEF);
+				}
 			}
 		}
-	}
 	
 	printf("\033[%d;%dH",167,0);
 	printf("\033[?251");
@@ -161,13 +195,13 @@ void lectCase(int dim1, int dim2, int final[dim1][dim2]){
 
 	int i,j;
 	for(i=0;i<dim1;i++){
-                for(j=0;j<dim2;j++){
-                                affiche(i,j,final[i][j],DIM);
-                }
+		for(j=0;j<dim2;j++){
+            affiche(i,j,final[i][j],DIM);
+        }
 	}
 }
 
-void possible(int bloqueur, int dim1,int dim2, int hau,int lon, int laby[dim1][dim2],int *haut, int *droite, int *bas, int *gauche){
+int possible(int dim1,int dim2, int hau,int lon, int laby[dim1][dim2],int *haut, int *droite, int *bas, int *gauche){
 	printf("\033[%d;%dH",20,120);
 	printf("      ");
 	printf("\033[%d;%dH",21,120);
@@ -185,59 +219,89 @@ void possible(int bloqueur, int dim1,int dim2, int hau,int lon, int laby[dim1][d
 	int boucle=(-1);
 	
 	while(1){
-		if(laby[hau+1][lon]!=1&&laby[hau+2][lon]!=64){
-			if (laby[hau+2][lon]!=16 || boucle==1)
-			{
+		if(laby[hau+1][lon]!=1){
 				printf("\033[%d;%dH",21,120);
 				printf("bas");
 				*bas=1;
-				if(bloqueur==1)
-					break;
-			}
 		}
 
-		if(laby[hau][lon+1]!=1&&laby[hau][lon+2]!=64){
-			if (laby[hau][lon+2]!=16 || boucle==1)
-			{
+		if(laby[hau][lon+1]!=1){
 				printf("\033[%d;%dH",22,120);
 				printf("droite");
 				*droite=1;
-				if(bloqueur==1)	
-					break;
-			}
 		}
-		if(laby[hau-1][lon]!=1&&laby[hau-2][lon]!=64){
-			if (laby[hau-2][lon]!=16 || boucle==1)
-			{
-				
+		if(laby[hau-1][lon]!=1){
 				printf("\033[%d;%dH",20,120);
 				printf("haut");
 				*haut=1;
-					if(bloqueur==1)
-				break;
-			}
 		}
-		if(laby[hau][lon-1]!=1&&laby[hau][lon-2]!=64){
-			if (laby[hau][lon-2]!=16 || boucle==1)
-			{
+		if(laby[hau][lon-1]!=1){
 				printf("\033[%d;%dH",23,120);
 				printf("gauche");
 				*gauche=1;
-				if(bloqueur==1)
-					break;
-			}
 		} 
-
-		boucle++;
 	}
-	lectCase(dim1,dim2,laby);
+	//lectCase(dim1,dim2,laby);
 	printf("\033[%d;%dH",24,120);
-	printf("%d %d",hau, lon);		
+	printf("%d %d",hau, lon);	
+	return ((*haut)+(*droite)+(*bas)+(*gauche));
 }
 
-void ia(int dim1, int dim2, int final[dim1][dim2], int passage[dim1][dim2], int lonI, int hautI,int lonF,int hautF){
+void ia(int dim1, int dim2, int laby[dim1][dim2], int lonI, int hautI,int lonF,int hautF){
+	int lon=lonI;
+	int lonRetour;
+	int haut=hautI,hautRetour;
+	int EnsemblePossible,bloqueur,droite,bas,hau,gauche;	
+	int mur,perso,arriv,lettre,chemin;	
+	LectureConfig(&mur,&perso, &arriv ,&lettre, &chemin);
 
+		
+	do{
+		bloqueur=0;
+		EnsemblePossible=possible(dim1,dim2,hau,lon,laby,&haut,&droite,&bas,&gauche);
+		
+		if (EnsemblePossible==1)
+		{
+			bloqueur=1;
+		}
 
+        affiche(haut,lonI,laby[hautI][lonI],DIM);
+		affiche(hautI-2,lonI,perso,DIM);
+
+		if(hau==1){
+			laby[hau+1][lon];
+			if (bloqueur==1)
+			{
+				laby[haut-2][lon]=mur;
+				laby[haut-1][lon]=mur;
+			}
+		}
+		if(droite==1){
+			laby[hau][lon+1];
+			if (bloqueur==1)
+			{
+				laby[haut][lon-2]=mur;
+				laby[haut][lon-1]=mur;
+			}
+		}
+		if(bas==1){
+			laby[hau-1][lon];
+			if (bloqueur==1)
+			{
+				laby[haut+2][lon]=mur;
+				laby[haut+1][lon]=mur;
+			}
+		}
+		if(gauche==1){
+			laby[hau][lon-1];
+			if (bloqueur==1)
+			{
+				laby[haut][lon+2]=mur;
+				laby[haut][lon+1]=mur;
+			}
+		}
+
+	}while(!((lon==lonF)&&(hau==hautF)));
 
 }
 
@@ -246,6 +310,7 @@ void move(int *Sec2,int *Min,int dim1, int dim2, int final[dim1][dim2], int pass
 	int Sec,Hour=0,mur,perso,arriv,lettre,chemin,def;
 	*Min=0;
 	Sec=time(NULL);
+	printf("\007");
 	printf("\033[%d;%dH",20,120);
 	printf("Chronomètre:");
 	touche=0;
@@ -308,7 +373,7 @@ void move(int *Sec2,int *Min,int dim1, int dim2, int final[dim1][dim2], int pass
 
 	}
 
-	(*Sec2)=time(NULL)-Sec;
+	(*Sec2)=time(NULL)-Sec+((*Min)*60);
 	
 }
 
@@ -342,9 +407,7 @@ void Alettre(char *cara,int *haut,int *lon){
 									}		
 							affiche(i+decalon,j+decahaut,affichage[i][j],1);
 				
-				//			printf (" (%d %d ) %d ",i,j,affichage[i][j]);
 						}
-				//		printf("\n");
 					}
 					decahaut+=5;
 	
@@ -379,9 +442,7 @@ void Alettre(char *cara,int *haut,int *lon){
 		
 					affiche(i+decalon,j+decahaut,affichage[i][j],1);
 		
-		//			printf (" (%d %d ) %d ",i,j,affichage[i][j]);
 				}
-		//		printf("\n");
 			}
 				
 			decahaut+=5;
@@ -464,6 +525,174 @@ int menu(){
 	return r;
 }
 
+
+int SelectionCouleur(){
+
+	int i,j,lon=0,haut=0,r;
+	char touche;
+	int mur,perso,arriv,lettre,chemin;
+	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
+	clearScreen();
+	Alettre("categorie",&haut,&lon);
+	haut=6;
+	Alettre("A",&haut,&lon);
+	lon=6;
+	for(i=0;i<30;i++){
+		for(j=0;j<2;j++){
+			affiche(haut+i,lon+j,lettre,1);
+		}
+	}
+	lon=9;
+	Alettre("mur",&haut,&lon);
+	haut=12;
+	Alettre("perso",&haut,&lon);
+	haut=18;
+	Alettre("arrive",&haut,&lon);
+	haut=24;
+	Alettre("lettre",&haut,&lon);
+	haut=30;
+	Alettre("chemin",&haut,&lon);
+	touche=0;
+	haut=6;
+	lon=0;
+	r=1;
+/****Gestion clavier dans le menu******************/
+		while(touche==0){
+			touche=key_pressed();
+			
+			if (touche==122)
+			{
+				touche=0;
+				if (r!=1){
+					r--;
+					Alettre("V",&haut,&lon);
+					haut=(6*r);
+					Alettre("A",&haut,&lon);
+					touche=0;
+				}
+			}
+			else if (touche==115)
+			{
+				touche=0;
+				if(r!=5)
+				{
+					r++;
+					Alettre("V",&haut,&lon);
+					haut=(6*r);
+					Alettre("A",&haut,&lon);
+					touche=0;
+				}
+			}
+			else if (touche==10)
+			{
+				
+			}
+			else
+				touche=0;
+
+		}		
+
+	clearScreen();
+	return --r;
+}
+
+int ChoixCouleur(){
+
+	int i,j,lon=0,haut=0,r;
+	char touche;
+	int mur,perso,arriv,lettre,chemin;
+	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
+	clearScreen();
+	Alettre("couleur",&haut,&lon);
+	haut=6;
+	Alettre("A",&haut,&lon);
+	lon=6;
+	for(i=0;i<30;i++){
+		for(j=0;j<2;j++){
+			affiche(haut+i,lon+j,lettre,1);
+		}
+	}
+	lon=9;
+	Alettre("cyan",&haut,&lon);
+	haut=12;
+	Alettre("rouge",&haut,&lon);
+	haut=18;
+	Alettre("violet",&haut,&lon);
+	haut=24;
+	Alettre("jaune",&haut,&lon);
+	haut=30;
+	Alettre("gris",&haut,&lon);
+	touche=0;
+	haut=6;
+	lon=0;
+	r=1;
+/****Gestion clavier dans le menu******************/
+		while(touche==0){
+			touche=key_pressed();
+			
+			if (touche==122)
+			{
+				touche=0;
+				if (r!=1){
+					r--;
+					Alettre("V",&haut,&lon);
+					haut=(6*r);
+					Alettre("A",&haut,&lon);
+					touche=0;
+				}
+			}
+			else if (touche==115)
+			{
+				touche=0;
+				if(r!=5)
+				{
+					r++;
+					Alettre("V",&haut,&lon);
+					haut=(6*r);
+					Alettre("A",&haut,&lon);
+					touche=0;
+				}
+			}
+			else if (touche==10)
+			{
+				
+			}
+			else
+				touche=0;
+
+		}		
+
+	return --r;
+}
+
+void ChangementCouleur(int position, int couleur){
+	FILE* fichier = NULL;
+	int reglage[6],i=0,j=0,mur=0,perso=0,arriv=0,lettre=0,chemin=0;
+	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
+	fichier = fopen( "option.txt", "w+");
+	reglage[0]=mur;
+	reglage[1]=perso;
+	reglage[2]=arriv;
+	reglage[3]=lettre;
+	reglage[4]=chemin;
+	reglage[5]=reglage[position];
+	reglage[position]=couleur;
+	if (reglage[0]==reglage[4])
+	{
+		printf("Désoler mais un mur ne peut avoir la meme couleur que le chemin\n");
+		reglage[position]=reglage[5];
+	}
+	else if(reglage[1]==reglage[4])
+	{
+		printf("Désoler mais le perso ne peut avoir la meme couleur que le chemin\n");
+		reglage[position]=reglage[5];	
+	}
+	
+	fprintf(fichier,"%d %d %d %d %d",reglage[0],reglage[1],reglage[2],reglage[3],reglage[4]);
+
+	fclose(fichier);
+}
+
 int main()
 {
 int i=0,j,k,l,m,n,o,p,q,Balise=0;
@@ -494,7 +723,6 @@ int mur,perso,arriv,lettre,chemin;
 	int dimension=NbLig*NbCol*4;
 	char Ligne[NbCol*5];
 	char text[NbLig][NbCol][4];
-	printf("dimension = %d\n", dimension);
 
 for (i = 0; i<NbLig; i++)
 {
@@ -511,7 +739,6 @@ for (i = 0; i<NbLig; i++)
 			for (k = 0 ; k < NbCol*5 ; k++ ) {
 				lecture=Ligne[k];
 				if(lecture=='M'||lecture=='-'){
-//					printf("%d %d %d %c ",i,j,m,lecture); 
 					text[i][j][m]=lecture;
 					m++;
 				}
@@ -521,7 +748,6 @@ for (i = 0; i<NbLig; i++)
 					if(j==NbCol-1){
 						i++;
 						j=0;
-//						printf("\n");
 					}
 					else 
 						j++;
@@ -530,30 +756,15 @@ for (i = 0; i<NbLig; i++)
 		}
 	}
 	Verif(NbLig,NbCol,text);
-
-/*	printf("\n");
-
-
-	printf("FIN\n");	
-	for(i=0;i<NbLig;i++) {
-		for(j=0;j<NbLig;j++){
-			for(k=0;k<4;k++){
-				printf("%c",text[i][j][k]);
-			}
-		printf(" ");
-		}
-	printf("\n");
-	}
-*/
 	int final[NbLig*2+1][NbCol*2+1];
 	int passage[NbLig*2+1][NbCol*2+1];
 
 	for(i=0;i<NbLig*2+1;i++){
 		for(j=0;j<NbCol*2+1;j++){
 			if( i==0 || j==0 || i==NbCol*2 || j==NbCol*2 || (i%2==0&&j%2==0) )
-				final[i][j]=mur;
+				final[i][j]=0;
 			else
-				final[i][j]=chemin;
+				final[i][j]=1;
 		}
 	}
 
@@ -561,11 +772,12 @@ for (i = 0; i<NbLig; i++)
 		for(j=0;j<=NbCol;j++){
 	
 			if(text[i][j][0]=='M')
-				final[i*2][j*2+1]=mur;
+				final[i*2][j*2+1]=0;
 			if(text[i][j][3]=='M')
-				final[i*2+1][j*2]=mur;
+				final[i*2+1][j*2]=0;
 		}
 	}
+	RechargeTableau(NbCol*2+1,NbLig*2+1,final);
 	copie(NbCol*2+1,NbLig*2+1,passage,final);
 /*	for(i=0;i<NbLig*2+1;i++){
 		for(j=0;j<NbCol*2+1;j++){
@@ -577,14 +789,16 @@ for (i = 0; i<NbLig; i++)
 		printf("\n");
 	}
 */
-	int haut=0,lon=0,sec=0,min=0;
+	int couleur,categorie,haut=0,lon=0,sec=0,min=0,Score1;
 	int choix;
 	clearScreen();
 	Alettre("bienvenue_tu es dans le_laby",&haut,&lon);
 		do{
+			LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
 			choix=menu();
 				switch(choix){
 				case 1:
+					copie(NbCol*2+1,NbLig*2+1,passage,final);
 					printf("quand tu seras dans le laby tu pourras utliser les commandes suivantes\n");
 					printf("z=haut\nq=gauche\ns=bas\nd=droite\n");
 					printf("Ton départ est matérialisé en violet et ton arrivé en jaune\n");
@@ -596,8 +810,16 @@ for (i = 0; i<NbLig; i++)
 					move(&sec,&min,NbLig*2+1, NbCol*2+1,final,passage,LgE*2+1,CoE*2+1,LgS*2+1,CoS*2+1);
 					clean();
 					printf("\033[%d;%dH",0,0);
-					printf("Tu as mis %02d min %02d sec",min,sec);
-					EcritureConfig("score",&min,&sec);
+					if (LectureScore()>sec)
+					{
+						printf("Bravo tu as battu le meuilleur score de %d",LectureScore()-sec);
+					}
+					else{
+						printf("Dommage tu as raté le meuilleur score de %d",sec-LectureScore());
+					}
+					printf("s \nTu as mis %02d min %02d sec",sec/60,sec%60);
+					EcritureConfig("score",&sec);
+					system("sort -n score.txt | head -n 10> score2.txt; mv score2.txt  score.txt");
 					getchar();
 					printf("\033[%d;%dH",(NbCol+1)*2,0);
 					clean();
@@ -607,9 +829,14 @@ for (i = 0; i<NbLig; i++)
 					clean();
 					lectCase(NbLig*2+1, NbCol*2+1, passage);
 					printf("\033[%d;%dH",(NbCol+1)*2,0);
-					break;
+/*					ia(NbLig*2+1,NbCol*2+1,passage,LgE*2+1,CoE*2+1,LgS*2+1,CoS*2+1);
+					lectCase(NbLig*2+1, NbCol*2+1, passage);
+*/					break;
 				case 2:
-					printf("Vous ne pouvez mettre chaque couleur doit obligatoirement correspondre à une catégorie\n");	
+					categorie=SelectionCouleur();
+					couleur=ChoixCouleur();
+					ChangementCouleur(categorie,couleur);
+					RechargeTableau(NbCol*2+1,NbLig*2+1,final);
 					break;
 				case 3:
 					printf("\033[%d;%dH",0,0);
