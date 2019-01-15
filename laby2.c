@@ -299,50 +299,55 @@ int possible(int dim1,int dim2, int hau,int lon, int laby[dim1][dim2],int *haut,
 
 int ia(int dim1, int dim2, char laby[dim1][dim2][4], int lonI, int hautI,int lonF,int hautF){
 	int move=0;
-	int m=0,Entree=2;
-	for (int i = 0; i < dim1; i++)
+	int m=0,Entree=1;
+/*	for (int i = 0; i < dim1; i++)
 	{
 		for (int j = 0; j < dim2; j++)
+		{
+			for (int k = 0; k < 4; k++)
 			{
-				for (int k = 0;k < 4; k++)
-					{
-						printf("%c",laby[i][j][k]);
-					}
-				printf(" ");	
-			}	
-			printf("\n");
+				printf("%c",laby[i][j][k] );
+			}
+			printf(" ");
+		}
+		printf("\n");
 	}
-	printf("\n");
-	getchar();
-	while(!(lonI==lonF && hautI==hautF)){
+*/	while(!(lonI==lonF && hautI==hautF)){
 		move=0;
 		for (int i = 0; move==0 && i!=4; i++)
 		{
 			m=(Entree+i)%4;
-			printf("mur en  %d = %d \n", m,laby[lonI][hautI][m]);
-			if(laby[lonI][hautI][m]=='-'){
+		//	printf("mur en  %d = %c \n", m,laby[hautI][lonI][m]);
+			if(laby[hautI][lonI][m]=='-'){
 				switch (m){
 					case 0:
+						affiche(2*hautI,2*lonI+1,1,DIM);
 						hautI--;
 						break;
 					case 1:
+						affiche(2*hautI+1,2*lonI+2,1,DIM);
 						lonI++;
 						break;
 					case 2:
-						hautI++;
+						affiche(2*hautI+2,2*lonI+1,1,DIM);
+						hautI++	;
 						break;
 					case 3:
+						affiche(2*hautI+1,2*lonI,1,DIM);
 						lonI--;
 						break;
 				}
-				printf("direction=%d:(haut %d et long %d)\n",m,hautI,lonI);
+				fflush(stdout);
+				usleep(1000000);
+				affiche(2*hautI+1,2*lonI+1,1,DIM);
+				//printf("direction=%d:(haut %d et long %d)\n",m,hautI,lonI);
 				Entree=(m+3)%4;
 				move++;
 				break;
 			}
 			m=Entree;
 		}
-		printf("sorti\n");
+	//	printf("sorti\n");
 	}
 	return move;
 
@@ -833,6 +838,7 @@ int mur,perso,arriv,lettre,chemin;
 	int dimension=NbLig*NbCol*4;
 	char Ligne[NbCol*5];
 	char text[NbLig][NbCol][4];
+	char textCopie[NbLig][NbCol][4];
 
 	i=0;
 	j=0;
@@ -844,6 +850,7 @@ int mur,perso,arriv,lettre,chemin;
 				lecture=Ligne[k];
 				if(lecture=='M'||lecture=='-'){
 					text[i][j][m]=lecture;
+					textCopie[i][j][m]=lecture;
 					m++;
 				}
 				else
@@ -860,9 +867,8 @@ int mur,perso,arriv,lettre,chemin;
 		}
 	}
 
-	//Verif(NbLig,NbCol,text);
+	Verif(NbLig,NbCol,text);
 	int final[NbLig*2+1][NbCol*2+1];
-	int passage[NbLig*2+1][NbCol*2+1];
 
 	for(i=0;i<NbLig*2+1;i++){
 		for(j=0;j<NbCol*2+1;j++){
@@ -873,20 +879,6 @@ int mur,perso,arriv,lettre,chemin;
 		}
 	}
 
-	for (int i = 0; i < NbLig; i++)
-	{
-		for (int j = 0; j < NbCol; j++)
-			{
-				for (int k = 0;k < 4; k++)
-					{
-						printf("%c",text[i][j][k]);
-					}
-				printf(" ");	
-			}	
-			printf("\n");
-	}
-	printf("\n");
-	getchar();
 	for(i=0;i<=NbLig;i++){
 		for(j=0;j<=NbCol;j++){
 	
@@ -896,20 +888,8 @@ int mur,perso,arriv,lettre,chemin;
 				final[i*2+1][j*2]=0;
 		}
 	}
-	for (int i = 0; i < NbLig; i++)
-	{
-		for (int j = 0; j < NbCol; j++)
-			{
-				for (int k = 0;k < 4; k++)
-					{
-						printf("%c",text[i][j][k]);
-					}
-				printf(" ");	
-			}	
-			printf("\n");
-	}
-	printf("\n");
-	getchar();
+
+	int passage[NbLig*2+1][NbCol*2+1];
 	RechargeTableau(NbCol*2+1,NbLig*2+1,final);
 	copie(NbCol*2+1,NbLig*2+1,passage,final);
 /*	for(i=0;i<NbLig*2+1;i++){
@@ -975,9 +955,9 @@ int mur,perso,arriv,lettre,chemin;
 						break;
 					case 2:
 						printf("ia1\n");
-
+						lectCase(2*NbCol+1,2*NbLig+1,final);
 						mouvement=ia(NbLig,NbCol,text,LgE,CoE,LgS,CoS);
-						printf("ia2 %d\n",mouvement);
+						//printf("ia2 %d\n",mouvement);
 						break;
 				}
 				break;
