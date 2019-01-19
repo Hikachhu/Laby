@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
 #include <string.h>
 #include <termios.h>
@@ -45,13 +44,7 @@ void viderBuffer()
     }
 }
 
-void TailleEcran(int *longeur,int *hauteur)
-{
-	struct winsize w;
-	ioctl(0, TIOCGWINSZ, &w);
-	*hauteur=w.ws_row;
-	*longeur=w.ws_col;
-}
+
 
 void IntegraliteFichiers(){
 	system("clear");
@@ -249,15 +242,12 @@ void affiche(int haut, int lon, int color,int dim){
 /*Affiche l'intégralité d'un tableau */
 void AfficheLaby(int dim1, int dim2, int final[dim1][dim2]){
 
-	int longeur,hauteur,i,j;
-	TailleEcran(&longeur,&hauteur);
-
+	int i,j;
 	for(i=0;i<dim1;i++){
 		for(j=0;j<dim2;j++){
-
-            affiche(i+(hauteur-dim1-1)/2,j+(longeur)/4-(dim2-1)/2,final[i][j],DIM);        }
+            affiche(i,j,final[i][j],DIM);
+        }
 	}
-
 }
 
 int possible(int dim1, int dim2,int lon, int haut, int *DispoHaut, int *DispoDroite, int *DispoBas, int *DispoGauche, char laby[dim1][dim2][4]){
@@ -358,21 +348,6 @@ void ia(int dim1, int dim2, char laby[dim1][dim2][4], int lonI, int hautI,int lo
 		affiche(2*hautI+1,2*lonI+1,passage[2*hautI+1][2*lonI+1],DIM);
 
 		Entree=m;
-
-		printf("\033[%d;%dH",21,120);
-		printf("TotalPossibilite=%d, totalCote=%d,passage=%d",TotalPossibilite,totalCote,ComptePassage[hautI][lonI]);
-		printf("\033[%d;%dH",22,120);
-		printf("dispo haut=%d",DispoHaut);
-		printf("\033[%d;%dH",23,120);
-		printf("dispo droite=%d",DispoDroite);
-		printf("\033[%d;%dH",24,120);
-		printf("dispo bas=%d",DispoBas);
-		printf("\033[%d;%dH",25,120);
-		printf("dispo gauche=%d",DispoGauche);
-		printf("\033[%d;%dH",26,120);
-		printf("bloqueur=%d",bloqueur);
-		printf("\033[%d;%dH",27,120);
-		printf("bloqueur2=%d",bloqueur2);
 //		while(key_pressed()!=27);
 
 
@@ -1064,9 +1039,6 @@ int mur,perso,arriv,lettre,chemin;
 */
 	int couleur,mouvement,categorie,haut=0,lon=0,sec=0,min=0,Score1,Mouvement;
 	int choix;
-	int longeur,hauteur;
-	TailleEcran(&longeur,&hauteur);
-
 	clearScreen();
 	AfficheLettres("bienvenue_tu es dans le_laby",&haut,&lon);
 		do{
@@ -1084,9 +1056,8 @@ int mur,perso,arriv,lettre,chemin;
 						clean();
 						printf("\033[%d;%dH",0,0);
 						AfficheLaby(NbLig*2+1, NbCol*2+1, final);
-		//				CoS*2+1+(hauteur-CoS*2)/2,LgS*2+1+(longeur)/4-Lgs
-						affiche(CoS+(hauteur)/2-1,LgS+(longeur)/4,arriv,DIM);
-						affiche(CoE-NbCol+(hauteur)/2,LgE-NbLig+1+(longeur)/4,perso,DIM);
+						affiche(CoS*2+1,LgS*2+1,arriv,DIM);
+						affiche(LgE*2+1,CoE*2+1,perso,DIM);
 						Mouvement=move(&sec,&min,NbLig*2+1, NbCol*2+1,final,passage,LgE*2+1,CoE*2+1,LgS*2+1,CoS*2+1);
 						if (Mouvement==0)
 						{		
