@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <string.h>
 #include <termios.h>
@@ -27,10 +28,9 @@ void copie(int dim1, int dim2 ,int Arr1[dim1][dim2], int Arr2[dim1][dim2]);
 void RechargeTableau(int dim1, int dim2 ,int Arr1[dim1][dim2]);
 void Verif(int NbLig, int NbCol, char tableau[NbLig][NbCol][4]);
 void affiche(int haut, int lon, int color,int dim);
-void lectCase(int dim1, int dim2, int final[dim1][dim2]);
-int  possible(int dim1,int dim2, int hau,int lon, int laby[dim1][dim2],int *haut, int *droite, int *bas, int *gauche);
+void AfficheLaby(int dim1, int dim2, int final[dim1][dim2]);
 int  move(int *Sec2,int *Min,int dim1, int dim2, int final[dim1][dim2], int passage[dim1][dim2], int lonI, int hautI,int lonF,int hautF);
-void Alettre(char *cara,int *haut,int *lon);
+void AfficheLettres(char *cara,int *haut,int *lon);
 int  menu();
 int  SelectionCouleur();
 int  ChoixCouleur();
@@ -43,6 +43,14 @@ void viderBuffer()
     {
         c = getchar();
     }
+}
+
+void TailleEcran(int *longeur,int *hauteur)
+{
+	struct winsize w;
+	ioctl(0, TIOCGWINSZ, &w);
+	*hauteur=w.ws_row;
+	*longeur=w.ws_col;
 }
 
 void IntegraliteFichiers(){
@@ -239,117 +247,269 @@ void affiche(int haut, int lon, int color,int dim){
 }
 
 /*Affiche l'intégralité d'un tableau */
-void lectCase(int dim1, int dim2, int final[dim1][dim2]){
+void AfficheLaby(int dim1, int dim2, int final[dim1][dim2]){
 
-	int i,j;
+	int longeur,hauteur,i,j;
+	TailleEcran(&longeur,&hauteur);
+
 	for(i=0;i<dim1;i++){
 		for(j=0;j<dim2;j++){
-            affiche(i,j,final[i][j],DIM);
-        }
+
+            affiche(i+(hauteur-dim1-1)/2,j+(longeur)/4-(dim2-1)/2,final[i][j],DIM);        }
 	}
+
 }
 
-int possible(int dim1,int dim2, int hau,int lon, int laby[dim1][dim2],int *haut, int *droite, int *bas, int *gauche){
-	printf("\033[%d;%dH",20,120);
-	printf("      ");
-	printf("\033[%d;%dH",21,120);
-	printf("      ");
-	printf("\033[%d;%dH",22,120);
-	printf("      ");
-	printf("\033[%d;%dH",23,120);
-	printf("      ");
-	printf("\033[%d;%dH",24,120);
-	printf("      ");
-	int mur,perso,arriv,lettre,chemin;	
-	LectureConfig(&mur,&perso, &arriv ,&lettre, &chemin);
-	*haut=0;
-	*bas=0;
-	*droite=0;
-	*gauche=0;
-	int boucle=(-1);
+int possible(int dim1, int dim2,int lon, int haut, int *DispoHaut, int *DispoDroite, int *DispoBas, int *DispoGauche, char laby[dim1][dim2][4]){
+
+	if(laby[haut][lon][0]=='-'){
+		*DispoHaut=1;
+	}
+	else
+		*DispoHaut=0;
 	
-	while(1){
-		if(laby[hau+1][lon]!=mur){
-				printf("\033[%d;%dH",21,120);
-				printf("bas");
-				*bas=1;
-		}
-
-		if(laby[hau][lon+1]!=mur){
-				printf("\033[%d;%dH",22,120);
-				printf("droite");
-				*droite=1;
-		}
-		if(laby[hau-1][lon]!=mur){
-				printf("\033[%d;%dH",20,120);
-				printf("haut");
-				*haut=1;
-		}
-		if(laby[hau][lon-1]!=mur){
-				printf("\033[%d;%dH",23,120);
-				printf("gauche");
-				*gauche=1;
-		} 
+	if(laby[haut][lon][1]=='-'){
+		*DispoDroite=1;
 	}
-	//lectCase(dim1,dim2,laby);
-	printf("\033[%d;%dH",24,120);
-	printf("%d %d",hau, lon);	
-	return ((*haut)+(*droite)+(*bas)+(*gauche));
+	else
+		*DispoDroite=0;
+	
+	if(laby[haut][lon][2]=='-'){
+		*DispoBas=1;
+	}
+	else
+		*DispoBas=0;
+	
+	if(laby[haut][lon][3]=='-'){
+		*DispoGauche=1;
+	}
+	else
+		*DispoGauche=0;
+
+	return((*DispoBas)+(*DispoGauche)+(*DispoHaut)+(*DispoDroite));
 }
 
-int ia(int dim1, int dim2, char laby[dim1][dim2][4], int lonI, int hautI,int lonF,int hautF){
-	int move=0;
-	int m=0,Entree=1;
-/*	for (int i = 0; i < dim1; i++)
+
+void ia(int dim1, int dim2, char laby[dim1][dim2][4], int lonI, int hautI,int lonF,int hautF,int passage[dim1*2+1][dim2*2+1]){
+	int direction,bloqueur2=0,bloqueurSpecial,DispoBas,DispoGauche,DispoHaut,DispoDroite,TotalPossibilite,RetourChemin=0,totalCote;
+	int m=0,Entree=1,bloqueur=0,BloqueurHaut=0,BloqueurDroite=0,BloqueurBas=0,BloqueurGauche=0,BlocageTotal;
+	int ComptePassage[dim1][dim2];
+
+	for (int i = 0; i < dim1; i++)
 	{
 		for (int j = 0; j < dim2; j++)
 		{
-			for (int k = 0; k < 4; k++)
-			{
-				printf("%c",laby[i][j][k] );
-			}
-			printf(" ");
+			ComptePassage[i][j]=0;
 		}
-		printf("\n");
 	}
-*/	while(!(lonI==lonF && hautI==hautF)){
-		move=0;
-		for (int i = 0; move==0 && i!=4; i++)
+	int mur,perso,arriv,lettre,chemin;	
+	LectureConfig(&mur,&perso, &arriv ,&lettre, &chemin);
+
+	while(!(lonI==lonF && hautI==hautF)){
+
+		bloqueurSpecial=0;
+		bloqueur2=bloqueur;
+		TotalPossibilite=possible(dim1,dim2,lonI,hautI,&DispoHaut,&DispoDroite,&DispoBas,&DispoGauche,laby);
+
+
+		totalCote=0;
+		if(DispoBas==1){
+			totalCote+=ComptePassage[hautI+1][lonI];
+		}
+		if (DispoHaut==1)
 		{
-			m=(Entree+i)%4;
-		//	printf("mur en  %d = %c \n", m,laby[hautI][lonI][m]);
-			if(laby[hautI][lonI][m]=='-'){
-				switch (m){
+			totalCote+=ComptePassage[hautI-1][lonI];
+		}
+		if (DispoDroite==1)
+		{
+			totalCote+=ComptePassage[hautI][lonI+1];
+		}
+		if (DispoGauche==1)
+		{
+			totalCote+=ComptePassage[hautI][lonI-1];
+		}
+	
+
+		if(((possible(dim1,dim2,lonI,hautI,&DispoHaut,&DispoDroite,&DispoBas,&DispoGauche,laby)==2) && ComptePassage[hautI][lonI]>=2)||TotalPossibilite==1){
+			passage[2*hautI+1][2*lonI+1]=chemin;
+			bloqueur=1;
+		}
+		else{
+			passage[2*hautI+1][2*lonI+1]=perso;
+			bloqueur=0;
+		}
+
+		if(TotalPossibilite==3){
+
+			if(ComptePassage[hautI][lonI]%2==1 && totalCote>2)
+				passage[2*hautI+1][2*lonI+1]=chemin;
+			else
+				passage[2*hautI+1][2*lonI+1]=perso;
+
+
+			if(ComptePassage[hautI][lonI]%2==0 && totalCote>2)
+				passage[2*hautI+1][2*lonI+1]=perso;
+			else
+				passage[2*hautI+1][2*lonI+1]=chemin;
+		}
+
+	//	ComptePassage[hautI][lonI]++;
+		BloqueurHaut=0,BloqueurDroite=0,BloqueurBas=0,BloqueurGauche=0;
+		affiche(2*hautI+1,2*lonI+1,passage[2*hautI+1][2*lonI+1],DIM);
+
+		Entree=m;
+
+		printf("\033[%d;%dH",21,120);
+		printf("TotalPossibilite=%d, totalCote=%d,passage=%d",TotalPossibilite,totalCote,ComptePassage[hautI][lonI]);
+		printf("\033[%d;%dH",22,120);
+		printf("dispo haut=%d",DispoHaut);
+		printf("\033[%d;%dH",23,120);
+		printf("dispo droite=%d",DispoDroite);
+		printf("\033[%d;%dH",24,120);
+		printf("dispo bas=%d",DispoBas);
+		printf("\033[%d;%dH",25,120);
+		printf("dispo gauche=%d",DispoGauche);
+		printf("\033[%d;%dH",26,120);
+		printf("bloqueur=%d",bloqueur);
+		printf("\033[%d;%dH",27,120);
+		printf("bloqueur2=%d",bloqueur2);
+//		while(key_pressed()!=27);
+
+
+		if (direction==0)
+		{
+/*			while(laby[hautI][lonI][m+1]!='-'){
+				switch (m+1){
 					case 0:
-						affiche(2*hautI,2*lonI+1,1,DIM);
+						affiche(2*hautI,2*lonI+1,perso,DIM);
+						if((RetourChemin==1) && passage[2*hautI][2*lonI+1]==perso){
+							passage[2*hautI][2*lonI+1]=chemin;
+						}
+						else
+							passage[2*hautI][2*lonI+1]=perso;
 						hautI--;
 						break;
 					case 1:
-						affiche(2*hautI+1,2*lonI+2,1,DIM);
+						affiche(2*hautI+1,2*lonI+2,perso,DIM);
+						if((RetourChemin==1) && passage[2*hautI+1][2*lonI+2]==perso){
+							passage[2*hautI][2*lonI]=chemin;
+						}
+						else
+							passage[2*hautI+1][2*lonI+2]=perso;
 						lonI++;
 						break;
 					case 2:
-						affiche(2*hautI+2,2*lonI+1,1,DIM);
+						affiche(2*hautI+2,2*lonI+1,perso,DIM);
+						if((RetourChemin==1) && passage[2*hautI+2][2*lonI+1]==perso){
+							passage[2*hautI+2][2*lonI+1]=chemin;
+						}
+						else
+							passage[2*hautI+2][2*lonI+1]=perso;
 						hautI++	;
 						break;
 					case 3:
-						affiche(2*hautI+1,2*lonI,1,DIM);
+						affiche(2*hautI+1,2*lonI,perso,DIM);
+						if((RetourChemin==1) && passage[2*hautI+1][2*lonI]==perso){
+							passage[2*hautI+1][2*lonI]=chemin;
+						}
+						else
+							passage[2*hautI+1][2*lonI]=perso;
 						lonI--;
-						break;
+						break;			
 				}
+			} */
+		}
+
+		for (int i = 0;i!=4; i++)
+		{
+			m=(Entree+3+i)%4;
+			if(laby[hautI][lonI][m]=='-'){
+				switch (m){
+					case 0:
+						if (ComptePassage[hautI-1][lonI]==0 && TotalPossibilite>2)
+						{
+							BloqueurHaut=1;
+							passage[2*hautI+1][2*lonI+1]=perso;
+							affiche(2*hautI+1,2*lonI+1,passage[2*hautI+1][2*lonI+1],DIM);
+
+						}
+						if(((bloqueur2==1 || bloqueur==1) && ComptePassage[hautI-1][lonI]>=1)||TotalPossibilite==1||bloqueurSpecial==1){
+							passage[2*hautI][2*lonI+1]=chemin;
+						}
+						else{
+							passage[2*hautI][2*lonI+1]=perso;
+						}
+						affiche(2*hautI,2*lonI+1,passage[2*hautI][2*lonI+1],DIM);
+						hautI--;
+						break;
+					case 1:
+						if (ComptePassage[hautI][lonI+1]==0 && TotalPossibilite>2)
+						{
+							BloqueurDroite=1;
+							passage[2*hautI+1][2*lonI+1]=perso;
+							affiche(2*hautI+1,2*lonI+1,passage[2*hautI+1][2*lonI+1],DIM);
+						}
+						if(((bloqueur2==1|| bloqueur==1) && ComptePassage[hautI][lonI+1]>=1)||TotalPossibilite==1||bloqueurSpecial==1){
+							passage[2*hautI+1][2*lonI+2]=chemin;
+						}
+						else{
+							passage[2*hautI+1][2*lonI+2]=perso;
+						}
+						affiche(2*hautI+1,2*lonI+2,passage[2*hautI+1][2*lonI+2],DIM);
+						lonI++;
+						break;
+					case 2:
+
+						if (ComptePassage[hautI+1][lonI]==0 && TotalPossibilite>2)
+						{
+							BloqueurBas=1;
+							passage[2*hautI+1][2*lonI+1]=perso;
+							affiche(2*hautI+1,2*lonI+1,passage[2*hautI+1][2*lonI+1],DIM);
+						}
+						if(((bloqueur2==1|| bloqueur==1) && ComptePassage[hautI+1][lonI]>=1)||TotalPossibilite==1||bloqueurSpecial==1){
+							passage[2*hautI+2][2*lonI+1]=chemin;
+						}
+						else{
+							passage[2*hautI+2][2*lonI+1]=perso;
+						}
+						affiche(2*hautI+2,2*lonI+1,passage[2*hautI+2][2*lonI+1],DIM);
+						hautI++	;
+						break;
+					case 3:
+						if (ComptePassage[hautI][lonI-1]==0 && TotalPossibilite>2)
+						{
+							BloqueurGauche=1;
+							passage[2*hautI+1][2*lonI+1]=perso;	
+							affiche(2*hautI+1,2*lonI+1,passage[2*hautI+1][2*lonI+1],DIM);
+
+						}
+						if(((bloqueur2==1|| bloqueur==1) && ComptePassage[hautI][lonI-1]>=1)||TotalPossibilite==1||bloqueurSpecial==1){
+							passage[2*hautI+1][2*lonI]=chemin;
+						}
+						else{
+							passage[2*hautI+1][2*lonI]=perso;
+						}
+						affiche(2*hautI+1,2*lonI,passage[2*hautI+1][2*lonI],DIM);
+						lonI--;
+						break;			
+				}
+//				while(key_pressed()!=27);
+				BlocageTotal=BloqueurGauche+BloqueurBas+BloqueurDroite+BloqueurHaut;
+				ComptePassage[hautI][lonI]++;
+				if(i==0)
+					direction++;
+				if (i==2)
+					direction--;
 				fflush(stdout);
-				usleep(1000000);
-				affiche(2*hautI+1,2*lonI+1,1,DIM);
-				//printf("direction=%d:(haut %d et long %d)\n",m,hautI,lonI);
-				Entree=(m+3)%4;
-				move++;
+				usleep(15000);
+
+
 				break;
 			}
-			m=Entree;
+
 		}
 	//	printf("sorti\n");
 	}
-	return move;
 
 }
 
@@ -428,17 +588,17 @@ int move(int *Sec2,int *Min,int dim1, int dim2, int final[dim1][dim2], int passa
 	return 0;	
 }
 
-void Alettre(char *cara,int *haut,int *lon){
+void AfficheLettres(char *cara,int *haut,int *lon){
 	int z,mur,perso,arriv,lettre,chemin,def;	
 	int decalon=*haut,decahaut=*lon;
+	char final[10];
+	int lecture,i=0,j=0;
+	int affichage[5][5];
 	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
 
  	FILE* fichier = NULL;
  	for(z=0;cara[z]!='\0';z++){
 		if(cara[z]<='z'&&cara[z]>='a'){
-			char final[10];
-			int lecture,i=0,j=0;
-			int affichage[5][5];
 			sprintf(final,"%c.txt",cara[z]);
 		        fichier = fopen( final, "r");
 		
@@ -468,9 +628,6 @@ void Alettre(char *cara,int *haut,int *lon){
 		else if(cara[z]==' ')
 			decahaut+=2;
 		else if(cara[z]=='A'||cara[z]=='V'){
-			char final[10];
-			int lecture,i=0,j=0;
-			int affichage[5][5];
 			if(cara[z]=='A'){
 				fichier = fopen( "fleche.txt", "r");
 			}
@@ -494,11 +651,9 @@ void Alettre(char *cara,int *haut,int *lon){
 					affiche(i+decalon,j+decahaut,affichage[i][j],1);
 		
 				}
-			}
-				
+			}		
 			decahaut+=5;
-		}
-				
+		}		
 	}	
 	else{
 		decahaut=0;
@@ -514,9 +669,9 @@ int menu(){
 	int mur,perso,arriv,lettre,chemin;
 	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
 	clean();
-	Alettre("menu",&haut,&lon);
+	AfficheLettres("menu",&haut,&lon);
 	haut=6;
-	Alettre("A",&haut,&lon);
+	AfficheLettres("A",&haut,&lon);
 	lon=6;
 	for(i=0;i<24;i++){
 		for(j=0;j<2;j++){
@@ -524,13 +679,13 @@ int menu(){
 		}
 	}
 	lon=9;
-	Alettre("jouer",&haut,&lon);
+	AfficheLettres("jouer",&haut,&lon);
 	haut=12;
-	Alettre("couleur",&haut,&lon);
+	AfficheLettres("couleur",&haut,&lon);
 	haut=18;
-	Alettre("credit",&haut,&lon);
+	AfficheLettres("credit",&haut,&lon);
 	haut=24;
-	Alettre("quitter",&haut,&lon);
+	AfficheLettres("quitter",&haut,&lon);
 	touche=0;
 	haut=6;
 	lon=0;
@@ -544,9 +699,9 @@ int menu(){
 				touche=0;
 				if (r!=1){
 					r--;
-					Alettre("V",&haut,&lon);
+					AfficheLettres("V",&haut,&lon);
 					haut=(6*r);
-					Alettre("A",&haut,&lon);
+					AfficheLettres("A",&haut,&lon);
 					touche=0;
 				}
 			}
@@ -556,9 +711,9 @@ int menu(){
 				if(r!=4)
 				{
 					r++;
-					Alettre("V",&haut,&lon);
+					AfficheLettres("V",&haut,&lon);
 					haut=(6*r);
-					Alettre("A",&haut,&lon);
+					AfficheLettres("A",&haut,&lon);
 					touche=0;
 				}
 			}
@@ -581,9 +736,9 @@ int type(){
 	char touche;
 	int mur,perso,arriv,lettre,chemin;
 	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
-	Alettre("menu",&haut,&lon);
+	AfficheLettres("menu",&haut,&lon);
 	haut=6;
-	Alettre("A",&haut,&lon);
+	AfficheLettres("A",&haut,&lon);
 	lon=6;
 	for(i=0;i<12;i++){
 		for(j=0;j<2;j++){
@@ -591,9 +746,9 @@ int type(){
 		}
 	}
 	lon=9;
-	Alettre("manuel",&haut,&lon);
+	AfficheLettres("manuel",&haut,&lon);
 	haut=12;
-	Alettre("auto",&haut,&lon);
+	AfficheLettres("auto",&haut,&lon);
 	touche=0;
 	haut=6;
 	lon=0;
@@ -607,9 +762,9 @@ int type(){
 				touche=0;
 				if (r!=1){
 					r--;
-					Alettre("V",&haut,&lon);
+					AfficheLettres("V",&haut,&lon);
 					haut=(6*r);
-					Alettre("A",&haut,&lon);
+					AfficheLettres("A",&haut,&lon);
 					touche=0;
 				}
 			}
@@ -619,9 +774,9 @@ int type(){
 				if(r!=2)
 				{
 					r++;
-					Alettre("V",&haut,&lon);
+					AfficheLettres("V",&haut,&lon);
 					haut=(6*r);
-					Alettre("A",&haut,&lon);
+					AfficheLettres("A",&haut,&lon);
 					touche=0;
 				}
 			}
@@ -647,9 +802,9 @@ int SelectionCouleur(){
 	int mur,perso,arriv,lettre,chemin;
 	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
 	clearScreen();
-	Alettre("categorie",&haut,&lon);
+	AfficheLettres("categorie",&haut,&lon);
 	haut=6;
-	Alettre("A",&haut,&lon);
+	AfficheLettres("A",&haut,&lon);
 	lon=6;
 	for(i=0;i<30;i++){
 		for(j=0;j<2;j++){
@@ -657,15 +812,15 @@ int SelectionCouleur(){
 		}
 	}
 	lon=9;
-	Alettre("mur",&haut,&lon);
+	AfficheLettres("mur",&haut,&lon);
 	haut=12;
-	Alettre("perso",&haut,&lon);
+	AfficheLettres("perso",&haut,&lon);
 	haut=18;
-	Alettre("arrive",&haut,&lon);
+	AfficheLettres("arrive",&haut,&lon);
 	haut=24;
-	Alettre("lettre",&haut,&lon);
+	AfficheLettres("lettre",&haut,&lon);
 	haut=30;
-	Alettre("chemin",&haut,&lon);
+	AfficheLettres("chemin",&haut,&lon);
 	touche=0;
 	haut=6;
 	lon=0;
@@ -679,9 +834,9 @@ int SelectionCouleur(){
 				touche=0;
 				if (r!=1){
 					r--;
-					Alettre("V",&haut,&lon);
+					AfficheLettres("V",&haut,&lon);
 					haut=(6*r);
-					Alettre("A",&haut,&lon);
+					AfficheLettres("A",&haut,&lon);
 					touche=0;
 				}
 			}
@@ -691,9 +846,9 @@ int SelectionCouleur(){
 				if(r!=5)
 				{
 					r++;
-					Alettre("V",&haut,&lon);
+					AfficheLettres("V",&haut,&lon);
 					haut=(6*r);
-					Alettre("A",&haut,&lon);
+					AfficheLettres("A",&haut,&lon);
 					touche=0;
 				}
 			}
@@ -717,9 +872,9 @@ int ChoixCouleur(){
 	int mur,perso,arriv,lettre,chemin;
 	LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
 	clearScreen();
-	Alettre("couleur",&haut,&lon);
+	AfficheLettres("couleur",&haut,&lon);
 	haut=6;
-	Alettre("A",&haut,&lon);
+	AfficheLettres("A",&haut,&lon);
 	lon=6;
 	for(i=0;i<30;i++){
 		for(j=0;j<2;j++){
@@ -727,15 +882,15 @@ int ChoixCouleur(){
 		}
 	}
 	lon=9;
-	Alettre("cyan",&haut,&lon);
+	AfficheLettres("cyan",&haut,&lon);
 	haut=12;
-	Alettre("rouge",&haut,&lon);
+	AfficheLettres("rouge",&haut,&lon);
 	haut=18;
-	Alettre("violet",&haut,&lon);
+	AfficheLettres("violet",&haut,&lon);
 	haut=24;
-	Alettre("jaune",&haut,&lon);
+	AfficheLettres("jaune",&haut,&lon);
 	haut=30;
-	Alettre("gris",&haut,&lon);
+	AfficheLettres("gris",&haut,&lon);
 	touche=0;
 	haut=6;
 	lon=0;
@@ -749,9 +904,9 @@ int ChoixCouleur(){
 				touche=0;
 				if (r!=1){
 					r--;
-					Alettre("V",&haut,&lon);
+					AfficheLettres("V",&haut,&lon);
 					haut=(6*r);
-					Alettre("A",&haut,&lon);
+					AfficheLettres("A",&haut,&lon);
 					touche=0;
 				}
 			}
@@ -761,9 +916,9 @@ int ChoixCouleur(){
 				if(r!=5)
 				{
 					r++;
-					Alettre("V",&haut,&lon);
+					AfficheLettres("V",&haut,&lon);
 					haut=(6*r);
-					Alettre("A",&haut,&lon);
+					AfficheLettres("A",&haut,&lon);
 					touche=0;
 				}
 			}
@@ -801,7 +956,11 @@ void ChangementCouleur(int position, int couleur){
 		printf("Désoler mais le perso ne peut avoir la meme couleur que le chemin\n");
 		reglage[position]=reglage[5];	
 	}
-	
+	else if(reglage[1]==reglage[0]){
+
+		printf("Par souci de propreté le personnage ne peut etre de la meme couleur qu'un mur");
+		reglage[position]=reglage[5];
+	}
 	fprintf(fichier,"%d %d %d %d %d",reglage[0],reglage[1],reglage[2],reglage[3],reglage[4]);
 
 	fclose(fichier);
@@ -819,7 +978,8 @@ int mur,perso,arriv,lettre,chemin;
         int NbLig, NbCol, LgE, CoE, LgS, CoS;
 		char lecture,touche;
         FILE* fichier = NULL;
-        fichier = fopen( "maze_25x25.txt", "r");
+//        fichier = fopen( "maze.txt", "r");
+       fichier = fopen( "fichier.txt", "r");
 
 
         if (fichier==NULL)
@@ -904,10 +1064,14 @@ int mur,perso,arriv,lettre,chemin;
 */
 	int couleur,mouvement,categorie,haut=0,lon=0,sec=0,min=0,Score1,Mouvement;
 	int choix;
+	int longeur,hauteur;
+	TailleEcran(&longeur,&hauteur);
+
 	clearScreen();
-	Alettre("bienvenue_tu es dans le_laby",&haut,&lon);
+	AfficheLettres("bienvenue_tu es dans le_laby",&haut,&lon);
 		do{
 			LectureConfig(&mur,&perso,&arriv,&lettre,&chemin);
+			copie(NbCol*2+1,NbLig*2+1,passage,final);
 			choix=menu();
 				switch(choix){
 				case 1:
@@ -919,9 +1083,10 @@ int mur,perso,arriv,lettre,chemin;
 						printf("Tu peut quitter le labyrinthe à tout moment en appuyant sur la touche ESPACE\n");
 						clean();
 						printf("\033[%d;%dH",0,0);
-						lectCase(NbLig*2+1, NbCol*2+1, final);
-						affiche(CoS*2+1,LgS*2+1,arriv,DIM);
-						affiche(LgE*2+1,CoE*2+1,perso,DIM);
+						AfficheLaby(NbLig*2+1, NbCol*2+1, final);
+		//				CoS*2+1+(hauteur-CoS*2)/2,LgS*2+1+(longeur)/4-Lgs
+						affiche(CoS+(hauteur)/2-1,LgS+(longeur)/4,arriv,DIM);
+						affiche(CoE-NbCol+(hauteur)/2,LgE-NbLig+1+(longeur)/4,perso,DIM);
 						Mouvement=move(&sec,&min,NbLig*2+1, NbCol*2+1,final,passage,LgE*2+1,CoE*2+1,LgS*2+1,CoS*2+1);
 						if (Mouvement==0)
 						{		
@@ -940,11 +1105,11 @@ int mur,perso,arriv,lettre,chemin;
 							getchar();
 							printf("\033[%d;%dH",(NbCol+1)*2,0);
 							clean();
-							Alettre("tu as gagne",&lon,&haut);	
+							AfficheLettres("tu as gagne",&lon,&haut);	
 							clean();
 							printf("Tu as pris ce chemin :");
 							clean();
-							lectCase(NbLig*2+1, NbCol*2+1, passage);
+							AfficheLaby(NbLig*2+1, NbCol*2+1, passage);
 							printf("\033[%d;%dH",(NbCol+1)*2,0);
 						}
 						else{
@@ -953,11 +1118,15 @@ int mur,perso,arriv,lettre,chemin;
 							printf("Vous avez quitter le laby\nRetour au menu\n");
 						}
 						break;
-					case 2:
-						printf("ia1\n");
-						lectCase(2*NbCol+1,2*NbLig+1,final);
-						mouvement=ia(NbLig,NbCol,text,LgE,CoE,LgS,CoS);
-						//printf("ia2 %d\n",mouvement);
+					case 2:	
+						AfficheLaby(2*NbCol+1,2*NbLig+1,final);
+						affiche(CoS*2+1,LgS*2+1,arriv,DIM);
+						ia(NbLig,NbCol,text,LgE,CoE,LgS,CoS,passage);
+						clearScreen();
+						printf("Le chemin trouvé est celui ci\n");
+						getchar();
+						AfficheLaby(NbCol*2+1,NbLig*2+1,passage);
+
 						break;
 				}
 				break;
@@ -972,7 +1141,7 @@ int mur,perso,arriv,lettre,chemin;
 					printf("Application réalisé dans le cadre du projet info de 1ère Année de l'ESIEA une grande ecole d'ingenieure\nFlorian Morin: Programmeur\nRaphaël Ptithaddad: Design et chef de projet\n");
 					break;
 				case 4:
-					Alettre("au revoir",&lon,&haut);
+					AfficheLettres("au revoir",&lon,&haut);
 					break;
 			}
 
